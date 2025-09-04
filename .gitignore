@@ -5,3 +5,7 @@
 
 *.zip
 *.xml
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
