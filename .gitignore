@@ -9,3 +9,8 @@
 .httr-oauth
 .DS_Store
 .quarto
+
+*.pdf
+*.png
+*.xlsx
+*.csv
