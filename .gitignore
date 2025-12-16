@@ -14,3 +14,7 @@
 *.png
 *.xlsx
 *.csv
+*.gdb
+*.gpkg
+
+/data/cws_boundaries/

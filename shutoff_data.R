@@ -7,7 +7,7 @@ wisc_meters <- read_csv(here::here("data", "Meters - Totals.csv"))
 
 wisc_shutoffs <- wisc_shutoffs |>
   janitor::clean_names() |>
-  select(year, utility_id, name, class, type, ends_with("q4"), added_to_tax_roll, amount_added_to_tax_rol)
+  select(year, utility_id, name, class, type, ends_with("q3"), ends_with("q4"), added_to_tax_roll, amount_added_to_tax_rol)
 
 wisc_meters <- wisc_meters |>
   janitor::clean_names() |>
@@ -24,6 +24,13 @@ wisc_shutoffs <- wisc_shutoffs |>
          arrears_plus_tax_per_meter = amount_arrears_per_meter + amount_tax_roll_per_meter)
 
 summary(wisc_shutoffs)
+
+wisc_shutoffs |>
+  filter(year == 2024) |>
+  summarise(added = sum(added_to_tax_roll), amount_added = sum(amount_added_to_tax_rol),
+            q3_arrearages = sum(amount_of_arrears_end_of_q3),
+            q4_arrearages = sum(amount_of_arrears_end_of_q4),
+            num_systems = sum(amount_added_to_tax_rol > 0))
 
 wisc_shutoffs_summ <- wisc_shutoffs |>
   filter(year > 2020, residential > 0) |>
