@@ -33,6 +33,8 @@ end_rows[length(end_rows)+1] <- nrow(all_pages)
 
 process_one_entry <- function(one_entry) {
   
+
+  
 ## work with first block of text according to index and codes at 
 ## https://city.milwaukee.gov/ImageLibrary/Groups/treasurerAuthors/images/CITY-OF-MILWAUKEE-PROPERTY-TAX-ROLL-FORMAT-INDEX-AND-KEY-CODES.pdf
 ## then go block by block
@@ -53,17 +55,15 @@ process_one_entry <- function(one_entry) {
   # ditch already processed parts of entry
   stringr::str_sub(one_entry$text_data, 1, end_first_block) <- ""
   
- 
-  
-  ## NEED TO FIX BECAUSE ASSESSMENTS CAN BE OVER $1 million!!!!!
-  
+  ## 
+  commas_no_decimals_regex <- "\\d*\\,*\\d*\\,*\\d+|\\*{10}"
 
   dim_second_block <- matrix(nrow = nrow(one_entry), ncol = 2)
   dim_second_block[1, ] <- stringr::str_locate(one_entry$text_data[1], "R\\s+\\d+\\.\\d+\\s+(?=CITY)") 
-  dim_second_block[2, ] <- stringr::str_locate(one_entry$text_data[2], "L\\s+\\d*\\,*\\d*\\,*\\d*\\s+(?=COUNTY)")
-  dim_second_block[3, ] <- stringr::str_locate(one_entry$text_data[3], "I\\s+\\d*\\,*\\d*\\,*\\d*\\s+(?=SEWER)")
-  dim_second_block[4, ] <- stringr::str_locate(one_entry$text_data[4], "T\\s+\\d*\\,*\\d*\\,*\\d*\\s+(?=PUBLIC)")
-  dim_second_block[5, ] <- stringr::str_locate(one_entry$text_data[5], "E\\s+\\d*\\,*\\d*\\,*\\d*\\s+(?=STATE)")
+  dim_second_block[2, ] <- stringr::str_locate(one_entry$text_data[2], paste0("L(\\s+", commas_no_decimals_regex, ")?\\s+(?=COUNTY)"))
+  dim_second_block[3, ] <- stringr::str_locate(one_entry$text_data[3], paste0("I(\\s+", commas_no_decimals_regex, ")?\\s+(?=SEWER)"))
+  dim_second_block[4, ] <- stringr::str_locate(one_entry$text_data[4], paste0("T(\\s+", commas_no_decimals_regex, ")?\\s+(?=PUBLIC)"))
+  dim_second_block[5, ] <- stringr::str_locate(one_entry$text_data[5], paste0("E(\\s+", commas_no_decimals_regex, ")?\\s+(?=STATE)"))
  
   
   #if(dim_second_block[1:5, ] < start_third_block[1:5, 1] )
@@ -112,6 +112,7 @@ process_one_entry <- function(one_entry) {
            dollar_amounts = stringr::str_replace_all(dollar_amounts, "  ", ""),
            dollar_amounts = stringr::str_replace(dollar_amounts, "^$", "0"),
            dollar_amounts = replace_na(dollar_amounts, "0"),
+           dollar_amounts = stringr::str_replace(dollar_amounts, "\\*{10}", "-99999999"),
            dollar_amounts = as.numeric(dollar_amounts),
            rates_and_stuff = case_when(rates_and_stuff  == "R" ~ "tax_rate",
                                        rates_and_stuff  == "L" ~ "land_value",
@@ -128,8 +129,6 @@ process_one_entry <- function(one_entry) {
   one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0("^", third_block_2, collapse = "|"), "")
   
 
-  
-  # this regex should match a dollar amount
   # and this is a matrix now
   #end_fourth_block <- stringr::str_locate(one_entry$text_data, "\\d?\\,?\\d+\\.\\d{2}")  ## am gambling that the "CITY GOV" amount due is in all entries
   
@@ -138,6 +137,8 @@ process_one_entry <- function(one_entry) {
   #stringr::str_extract(one_entry$text_data, "\\d?\\,?\\d+\\.\\d{2}") 
   
   
+  commas_and_decimals_regex <- "\\d+\\,\\d\\d\\d\\.\\d{2}|\\d+.\\d{2}|\\*{10}"
+  
   fourth_block <- one_entry |>
     filter(stringr::str_detect(text_data, assessments_regex )) 
   
@@ -145,7 +146,7 @@ process_one_entry <- function(one_entry) {
   
   fourth_block_1
   
-  fourth_block_2 <- stringr::str_extract(fourth_block$text_data, "\\d*\\,\\d\\d\\d\\.\\d{2}|\\d+.\\d{2}") 
+  fourth_block_2 <- stringr::str_extract(fourth_block$text_data, commas_and_decimals_regex) 
   
   fourth_block_2
   
@@ -154,6 +155,7 @@ process_one_entry <- function(one_entry) {
     mutate(dollar_amounts = trimws(dollar_amounts),
            dollar_amounts = stringr::str_replace(dollar_amounts, ",", ""),
            dollar_amounts = replace_na(dollar_amounts, "0"),
+           dollar_amounts = stringr::str_replace(dollar_amounts, "\\*{10}", "-999999"),
            dollar_amounts = as.numeric(dollar_amounts),
            assessments = trimws(assessments),
            assessments = stringr::str_replace_all(assessments, " ", "_"),
@@ -165,62 +167,25 @@ process_one_entry <- function(one_entry) {
   one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0(fourth_block_1, collapse = "|"), "")
   one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0(fourth_block_2, collapse = "|"), "")
   
+  no_comma_yes_decimal_regex <- "\\d+\\.\\d{2}$)|\\*{10}$"
+  
   ## going out of order here because the fifth block may not exist
   
-  # okay maybe wrong way to go, it's nearly impossible to state regex from end
-  # problem is S code and FIRE INS
+  sixth_block_regex <- paste0("((T|S|H|L|N|A|P|D)\\s+(", no_comma_yes_decimal_regex, ")|((O |B )[:print:]+$)|((PD|IP)$)")
+ 
+  sixth_block <- stringr::str_extract(one_entry$text_data, sixth_block_regex)
   
-  ######################################3
+  sixth_block
   
-  #start_sixth_block <- stringr::str_locate(one_entry$text_data, "((T |S | H |L |N |A |P |D )\\s*\\d+\\.\\d{2})|((O |B )[:print:]+$)|(IP$|PD$)")  ## am gambling that the total tax is in all entries
-
-  special_charges_vector <- c("FIRE INS", "DELQ SEWER", "DELQ STORM", "DELQ WATER", "DELQ SERV","BLK WASTE","GARBAGE CA", "BLDG NUISA", "BID#48",
-                              "TOTAL", "SNOW REMOV")
-  
-  fifth_block_regex <- paste0("(",paste(special_charges_vector, collapse = "|"), ")\\s+\\d*\\,?\\d+\\.\\d{2}")
-
-  fifth_block <- stringr::str_extract(one_entry$text_data, fifth_block_regex)
-  
-  fifth_block
-  
-  ## ugh, using different regex!
-  dollar_amounts <- stringr::str_extract(fifth_block,"\\d?\\,?\\d+\\.\\d{2}")
-  
-  fifth_block <- stringr::str_remove(fifth_block,"\\d?\\,?\\d+\\.\\d{2}")
-
-  special_charges_df_temp <-  tibble(special_charges = fifth_block, dollar_amounts = dollar_amounts) |>
-    filter(!(is.na(dollar_amounts))) |>
-    mutate(special_charges = trimws(special_charges))
-  
-  
-  special_charges_df <-tibble(special_charges = special_charges_vector) |>
-    left_join(special_charges_df_temp, by = join_by(special_charges)) |>
-    mutate(dollar_amounts = trimws(dollar_amounts),
-           dollar_amounts = stringr::str_replace(dollar_amounts, ",", ""),
-           dollar_amounts = replace_na(dollar_amounts, "0"),
-           dollar_amounts = as.numeric(dollar_amounts),
-           special_charges = trimws(special_charges),
-           special_charges = stringr::str_replace_all(special_charges, " ", "_"),
-           special_charges = tolower(special_charges)
-      ) |>
-      pivot_wider(names_from = special_charges, values_from = dollar_amounts) |>
-      rename(total_special_charges = total) 
-    
-  
-  
-  
-  one_entry$text_data <- stringr::str_remove(one_entry$text_data, fifth_block_regex)
-  
-  one_entry$text_data <- trimws(one_entry$text_data)
-  
-  sixth_block_1 <- stringr::str_sub(one_entry$text_data, 1, 2)
+  sixth_block_1 <- stringr::str_sub(sixth_block, 1, 2)
   
   sixth_block_1
   
-  sixth_block_2 <- stringr::str_sub(one_entry$text_data, 3, nchar(one_entry$text_data))
+  sixth_block_2 <- stringr::str_sub(sixth_block, 3, nchar(sixth_block))
   
   sixth_block_2
   
+
   payments_and_credits_df <- tibble(names = sixth_block_1, values = sixth_block_2) |>
     filter(!(names == "" & values == "")) |>
     mutate(values = trimws(values),
@@ -239,30 +204,96 @@ process_one_entry <- function(one_entry) {
     ) |>
     pivot_wider(names_from = names, values_from = values) 
   
+  one_entry$text_data <- stringr::str_replace(one_entry$text_data, sixth_block_regex, "")
   
+  #####################################
   
+  # special_charges_vector <- c("FIRE INS", "DELQ SEWER", "DELQ STORM", "DELQ WATER", "DELQ SERV","BLK WASTE","GARBAGE CA", "BLDG NUISA", "BID#48",
+  #                             "TOTAL", "SNOW REMOV")
+  # 
+  # fifth_block_regex <- paste0("(",paste(special_charges_vector, collapse = "|"), ")\\s+\\d*\\,?\\d+\\.\\d{2}")
+  # 
+  # fifth_block <- stringr::str_extract(one_entry$text_data, fifth_block_regex)
+  # 
+  # fifth_block
   
-  return_df <- bind_cols(property_df, tax_df, assessments_df, special_charges_df, payments_and_credits_df )         
+  fifth_block <- one_entry |>
+    mutate(text_data = trimws(text_data)) |>
+    filter(!text_data == "")
+  
+  fifth_block 
+    
+  
+  dollar_amounts <- stringr::str_extract(fifth_block$text_data, commas_and_decimals_regex)
+  
+  special_charges <- trimws(stringr::str_remove(fifth_block$text_data, commas_and_decimals_regex))
+
+  
+  if(length(special_charges > 0)) {
+    
+    special_charges_df <-  tibble(special_charges = special_charges, dollar_amounts = dollar_amounts) |>
+      filter(!(is.na(dollar_amounts)))  |>
+      mutate(dollar_amounts = trimws(dollar_amounts),
+             dollar_amounts = stringr::str_replace(dollar_amounts, ",", ""),
+             dollar_amounts = replace_na(dollar_amounts, "0"),
+             dollar_amounts = stringr::str_replace(dollar_amounts, "\\*{10}", "-999999"),
+             dollar_amounts = as.numeric(dollar_amounts),
+             special_charges = trimws(special_charges),
+             special_charges = stringr::str_replace_all(special_charges, " ", "_"),
+             special_charges = tolower(special_charges)
+      ) |>
+      pivot_wider(names_from = special_charges, values_from = dollar_amounts) |>
+      janitor::clean_names()
+  
+  } else {
+    
+    special_charges_df <- tibble(total = 0)
+    
+  }
+  
+  colnames(special_charges_df) <- paste0(colnames(special_charges_df), "_special_charges")
+
+  
+  return_df <- bind_cols(property_df, tax_df, assessments_df, payments_and_credits_df, special_charges_df )         
   
 }
          
         
 
-one_entry <- all_pages[start_rows[551]:end_rows[551], 1]
+
+
+numeric_tax_cols <- c("total_gross_tax",
+                      "school_credit",
+                      "first_dollar_credit",
+                      "lottery_credit",
+                      "net_tax",
+                      "payments",
+                      "install_balance_due",
+                      "delq_balance_due")
+
+one_entry <- all_pages[start_rows[1000]:end_rows[1000], 1]
 
 check <- process_one_entry(one_entry)
 
 # # Start the clock!
-# ptm <- proc.time()
-# 
-# test_map <- purrr::map(1:1000, ~ process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1]))
-# 
-# # Stop the clock
-# proc.time() - ptm
-# 
-# ## about one minute for 250
-# 
-# test_map <- bind_rows(test_map)
+ptm <- proc.time()
+
+test_map <- purrr::map(1000:2000, ~ process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1]))
+
+# Stop the clock
+proc.time() - ptm
+
+## about one minute for 250
+
+test_map2 <- bind_rows(test_map, .id = "entry_number") |>
+  relocate(ends_with("special_charges"), .after = last_col()) |>
+  relocate("total_special_charges", .after = last_col()) |>
+  mutate(across(ends_with("special_charges"), ~ replace_na(.x, 0))) |>  ##clean up columns that may exist in a given record
+  mutate(across(any_of(numeric_tax_cols), ~ replace_na(.x, "0")),
+         across(any_of(numeric_tax_cols), ~ replace_na(.x, "0")),
+         across(all_of(numeric_tax_cols), ~ as.numeric(.x)))
+
+summary(test_map2)
 
 ####
 
@@ -272,8 +303,8 @@ future::plan(future::multisession, workers = 8)
 # Start the clock!
 ptm <- proc.time()
 
-test_map <- furrr::future_map(1:2000, 
-                              ~ process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1]))
+all_map <- furrr::future_map(1:length(start_rows), 
+                              ~ try(process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1])))
 
 # Stop the clock
 proc.time() - ptm
@@ -283,8 +314,21 @@ future::plan(future::sequential)
 ## about 87 seconds for 1000, 4 workers
 ## about 158 seconds for 1000, 8 workers
 ## about 88 seconds for 2000, 8 workers
-test_map_furrr <- bind_rows(test_map_furrr)
+## 4544 seconds for all 160,000 and 8 workers--not replicating
+## 500 seconds for 2000, 8 workers
 
+all_map2 <- purrr::discard(all_map, ~ is.null(nrow(.x)))
+
+all_map2 <- bind_rows(all_map2, .id = "entry_number") |>
+  relocate(ends_with("special_charges"), .after = last_col()) |>
+  relocate("total_special_charges", .after = last_col()) |>
+  mutate(across(ends_with("special_charges"), ~ replace_na(.x, 0))) |>  ##clean up columns that may not be there
+  mutate(across(any_of(numeric_tax_cols), ~ replace_na(.x, "0")),
+         across(any_of(numeric_tax_cols), ~ stringr::str_replace(.x, "\\*{10}", "-9999999")),
+         across(all_of(numeric_tax_cols), ~ as.numeric(.x)))
+
+
+tidytable::inv_gc()
 
 ##############
 
@@ -315,7 +359,7 @@ test_map_furrr <- bind_rows(test_map_furrr)
 # Start the clock!
 ptm <- proc.time()
 
-all_records <- purrr::map(1:length(start_rows),
+all_records <- purrr::map(1:2000,#1:length(start_rows),
                           ~ process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1]))
 
 # Stop the clock

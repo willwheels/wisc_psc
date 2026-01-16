@@ -1,0 +1,13 @@
+---
+title: "notes"
+output: html_document
+date: "2025-12-23"
+---
+
+
+## 
+
+https://www.revenue.wi.gov/Pages/Developers/file-transmission-home.aspx has the excel and other documentation from the Wisconsin Department of Revenue for the tax roll files
+
+Milwaukee codes for PDF versions of rolls: https://city.milwaukee.gov/ImageLibrary/Groups/treasurerAuthors/images/CITY-OF-MILWAUKEE-PROPERTY-TAX-ROLL-FORMAT-INDEX-AND-KEY-CODES.pdf
+
