@@ -140,7 +140,7 @@ process_one_entry <- function(one_entry) {
   commas_and_decimals_regex <- "\\d+\\,\\d\\d\\d\\.\\d{2}|\\d+.\\d{2}|\\*{10}"
   
   fourth_block <- one_entry |>
-    filter(stringr::str_detect(text_data, assessments_regex )) 
+    filter(stringr::str_detect(text_data, paste0(assessments_regex, "\\s*", commas_and_decimals_regex)))
   
   fourth_block_1 <- stringr::str_extract(fourth_block$text_data, assessments_regex)
   
@@ -164,8 +164,11 @@ process_one_entry <- function(one_entry) {
     pivot_wider(names_from = assessments, values_from = dollar_amounts) |>
     rename(total_assessment = total) 
   
-  one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0(fourth_block_1, collapse = "|"), "")
-  one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0(fourth_block_2, collapse = "|"), "")
+
+  one_entry$text_data <- stringr::str_replace(one_entry$text_data, 
+                                      paste0("(", paste0(assessments_regex, collapse = "|"), ")", "\\s*", "(", commas_and_decimals_regex, ")"), "")
+  
+#one_entry$text_data <- stringr::str_replace(one_entry$text_data, paste0("^", fourth_block_2, collapse = "|"), "")
   
   no_comma_yes_decimal_regex <- "\\d+\\.\\d{2}$)|\\*{10}$"
   
@@ -229,7 +232,7 @@ process_one_entry <- function(one_entry) {
   special_charges <- trimws(stringr::str_remove(fifth_block$text_data, commas_and_decimals_regex))
 
   
-  if(length(special_charges > 0)) {
+  if(length(special_charges) > 0) {
     
     special_charges_df <-  tibble(special_charges = special_charges, dollar_amounts = dollar_amounts) |>
       filter(!(is.na(dollar_amounts)))  |>
@@ -271,7 +274,10 @@ numeric_tax_cols <- c("total_gross_tax",
                       "install_balance_due",
                       "delq_balance_due")
 
-one_entry <- all_pages[start_rows[1000]:end_rows[1000], 1]
+
+one_entry_num <- 1
+
+one_entry <- all_pages[start_rows[one_entry_num]:end_rows[one_entry_num], 1]
 
 check <- process_one_entry(one_entry)
 
@@ -303,7 +309,7 @@ future::plan(future::multisession, workers = 8)
 # Start the clock!
 ptm <- proc.time()
 
-all_map <- furrr::future_map(1:length(start_rows), 
+all_map <- furrr::future_map(1:2000, 
                               ~ try(process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1])))
 
 # Stop the clock
@@ -317,9 +323,9 @@ future::plan(future::sequential)
 ## 4544 seconds for all 160,000 and 8 workers--not replicating
 ## 500 seconds for 2000, 8 workers
 
-all_map2 <- purrr::discard(all_map, ~ is.null(nrow(.x)))
+#all_map2 <- purrr::discard(all_map, ~ is.null(nrow(.x)))
 
-all_map2 <- bind_rows(all_map2, .id = "entry_number") |>
+all_map2 <- bind_rows(all_map, .id = "entry_number") |>
   relocate(ends_with("special_charges"), .after = last_col()) |>
   relocate("total_special_charges", .after = last_col()) |>
   mutate(across(ends_with("special_charges"), ~ replace_na(.x, 0))) |>  ##clean up columns that may not be there
@@ -327,45 +333,39 @@ all_map2 <- bind_rows(all_map2, .id = "entry_number") |>
          across(any_of(numeric_tax_cols), ~ stringr::str_replace(.x, "\\*{10}", "-9999999")),
          across(all_of(numeric_tax_cols), ~ as.numeric(.x)))
 
+full_seq <- seq(1, 2000)
+
+
+setdiff(full_seq, all_map2$entry_number)
+
 
 tidytable::inv_gc()
 
-##############
 
-# mirai::daemons(4)
-
-# Start the clock!
-# ptm <- proc.time()
-# 
-# test_map_parallel <- purrr::map(1:1000,
-#                                 purrr::in_parallel(\(x) process_one_entry(all_pages[start_rows[x]:end_rows[x], 1]),
-#                                                    process_one_entry = process_one_entry, 
-#                                                    #all_pages = all_pages,
-#                                                    start_rows = start_rows, end_rows = end_rows)
-#                                 )
-# 
-# # Stop the clock
-# proc.time() - ptm
-# 
-# 
-# 
-# test_map_parallel <- bind_rows(test_map_parallel)
-
-
-#mirai::daemons(0)
-## This failed due to memory error--would need to rewrite in order to move less to each daemon
-
+bind_low <- 2000
+bind_num <- 3000
 
 # Start the clock!
 ptm <- proc.time()
 
-all_records <- purrr::map(1:2000,#1:length(start_rows),
+all_records <- purrr::map(bind_low:bind_num,
                           ~ process_one_entry(all_pages[start_rows[.x]:end_rows[.x], 1]))
 
 # Stop the clock
 proc.time() - ptm
 
 
-all_records <- bind_rows(all_records)
+all_records2 <- bind_rows(all_records, .id = "entry_number")|>
+  relocate(ends_with("special_charges"), .after = last_col()) |>
+  relocate("total_special_charges", .after = last_col()) |>
+  mutate(across(ends_with("special_charges"), ~ replace_na(.x, 0))) |>  ##clean up columns that may not be there
+  mutate(across(any_of(numeric_tax_cols), ~ replace_na(.x, "0")),
+         across(any_of(numeric_tax_cols), ~ stringr::str_replace(.x, "\\*{10}", "-9999999")),
+         across(all_of(numeric_tax_cols), ~ as.numeric(.x)),
+         entry_number = as.integer(entry_number))
 
+# find missing obs
 
+full_seq <- seq(1, bind_num)
+
+setdiff(full_seq, all_records2$entry_number)
