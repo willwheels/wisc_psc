@@ -34,11 +34,14 @@ tidytable::inv_gc()
 
 
 xml_ns(rolls_milw_county_2024)
+## goggle AI says to do this but it doesn't work
+#Sys.setenv(LIBXML_MAX_NODESET_LENGTH=20000000)
+# 
 
 # # Start the clock!
 # ptm <- proc.time()
 # 
-# xml_ns_strip(rolls_milw_county_2024) ## memory issues on laptop
+# xml_ns_strip(rolls_milw_county_2024) ## hardcoded libxml error
 # 
 # # Stop the clock
 # proc.time() - ptm
@@ -49,7 +52,7 @@ all_items <- xml_find_all(rolls_milw_county_2024, ".//d1:Item")
 
 tidytable::inv_gc()
 
-source(here::here("xml_source_functions.R"))
+source(here::here("property_tax_rolls", "xml_source_functions.R"))
 
 process_one_item <- function(item_nodeset) {
   
@@ -74,7 +77,25 @@ process_one_item <- function(item_nodeset) {
   
 }
 
-## TAX RATES AND AMOUNTS ARE IN JURISDICTION AND TAX SUMMARY, I THINK
+## mucking around to try to strip namespace, failure
+# 
+# num_xml_nodes <- length(all_items)
+# half_nodes <- round(num_xml_nodes/2)
+# 
+# first_half_all_nodes <- all_items
+# 
+# 
+# xml_remove(first_half_all_nodes[[1]])
+# 
+# xml_remove(all_items[1])
+#   
+  
+#purrr::walk(half_nodes:num_xml_nodes, ~ xml_remove(first_half_all_nodes[.x]))
+
+#xml_ns_strip(first_half_all_nodes)
+
+
+## TAX RATES AND AMOUNTS ARE IN JURISDICTION AND TAX SUMMARY
 
 # Start the clock!
 ptm <- proc.time()
@@ -85,6 +106,7 @@ one_df <- process_one_item(all_items[1])
 proc.time() - ptm
 
 ## 100 seconds for one on tiny laptop
+## 20 seconds on big new one?!?
 
 # Start the clock!
 ptm <- proc.time()
@@ -97,6 +119,8 @@ proc.time() - ptm
 
 # 780 seconds for 10 on tiny laptop
 # completely impractical
+
+# 290 for ten on new lapton
 
 ## single occurence of municipality
 
