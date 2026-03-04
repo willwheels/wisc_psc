@@ -49,8 +49,6 @@ res <- httr::GET(
 )
 
 
-
-
 purrr::walk(1:nrow(milwaukee_records_tibble_no_ftp),
             ~ httr::GET(url = milwaukee_records_tibble_no_ftp$download_url[.x], 
                                httr::add_headers(`User-Agent` = user_agent_string),
@@ -58,5 +56,32 @@ purrr::walk(1:nrow(milwaukee_records_tibble_no_ftp),
                                httr::write_disk(here::here("data", "milwaukee_rolls", milwaukee_records_tibble_no_ftp$dest_filename[.x][[1]]), overwrite = TRUE) 
             )
 )
+
+
+## retrieve filenames from zip files
+## nb I tried to do this in a mutate call and failed
+
+find_read_filename <- function(format, dest_filename) {
+  
+  if(format == "zip") {
+    #read_filename <- unzip(here::here("data", "milwaukee_rolls", dest_filename), list = TRUE)$Name
+    read_filename_long <- unzip(here::here("data", "milwaukee_rolls", dest_filename), list = TRUE)
+    
+    read_filename <- read_filename_long$Name
+    
+    }
+  
+  else {
+    read_filename <- dest_filename
+  }
+  
+  return(read_filename)
+}
+
+
+read_filenames <- purrr::map2_vec(milwaukee_records_tibble_no_ftp$format, milwaukee_records_tibble_no_ftp$dest_filename,
+                                  find_read_filename)
+
+milwaukee_records_tibble_no_ftp$read_filename <- read_filenames
 
 save(milwaukee_records_tibble_no_ftp, file = here::here("files_downloaded_from_archive.Rda"))

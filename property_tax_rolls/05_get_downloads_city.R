@@ -52,3 +52,29 @@ purrr::walk(1:nrow(milwaukee_records_tibble),
                                                            milwaukee_records_tibble$dest_filename[.x][[1]]), overwrite = TRUE) 
             )
 )
+
+find_read_filename <- function(format, dest_filename) {
+  
+  if(format == "zip") {
+    #read_filename <- unzip(here::here("data", "milwaukee_rolls", dest_filename), list = TRUE)$Name
+    read_filename_long <- unzip(here::here("data", "milwaukee_rolls", dest_filename), list = TRUE)
+    
+    read_filename <- read_filename_long$Name
+    
+  }
+  
+  else {
+    read_filename <- dest_filename
+  }
+  
+  return(read_filename)
+}
+
+
+read_filenames <- purrr::map2_vec(milwaukee_records_tibble$format, milwaukee_records_tibble$dest_filename,
+                                  find_read_filename)
+
+milwaukee_records_tibble$read_filename <- read_filenames
+
+
+save(milwaukee_records_tibble, file = here::here("files_downloaded_from_city.Rda"))
