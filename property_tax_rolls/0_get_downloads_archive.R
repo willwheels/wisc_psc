@@ -28,7 +28,11 @@ milwaukee_records_tibble <- tibble::tibble(records_href = milwaukee_records_href
                           "all",
                           stringr::str_extract(records_text, "Milwaukee|Washington|Waukesha")),
          dest_filename = stringr::str_split(download_url, stringr::fixed("/")),
-         dest_filename = purrr::map(dest_filename, ~.x[length(.x)])
+         dest_filename = purrr::map(dest_filename, ~.x[length(.x)]),
+         dest_filename = as.character(dest_filename),
+         dest_filename = if_else(stringr::str_detect(dest_filename, "^20\\d\\d"),
+                                 dest_filename, paste0(year, "_", dest_filename))
+         
          ) |>
   filter(as.numeric(year) < 2022) ## uses versions from city website instead of these
 

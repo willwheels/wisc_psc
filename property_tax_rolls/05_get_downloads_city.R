@@ -28,11 +28,13 @@ milwaukee_records_tibble <- tibble::tibble(records_href = milwaukee_records_href
          format = stringr::str_extract(records_href, "pdf|zip|txt"),
          download_url = stringr::str_remove(records_href, "/web/20260104211650/"),
          download_url = stringr::str_remove(download_url, "https://web.archive.org"),
-         county = if_else(as.numeric(year) < 2021, 
-                          "all",
-                          stringr::str_extract(records_text, "Milwaukee|Washington|Waukesha")),
+         county = stringr::str_extract(records_text, "-Milwaukee|-Washington|-Waukesha"),
+         county = stringr::str_remove(county, stringr::fixed("-")),
          dest_filename = stringr::str_split(download_url, stringr::fixed("/")),
-         dest_filename = purrr::map(dest_filename, ~.x[length(.x)])
+         dest_filename = purrr::map(dest_filename, ~.x[length(.x)][[1]]),
+         dest_filename = as.character(dest_filename),
+         dest_filename = if_else(stringr::str_detect(dest_filename, "^20\\d\\d"),
+                                 dest_filename, paste0(year, "_", dest_filename))
          )
 
 
