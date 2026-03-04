@@ -29,7 +29,8 @@ milwaukee_records_tibble <- tibble::tibble(records_href = milwaukee_records_href
                           stringr::str_extract(records_text, "Milwaukee|Washington|Waukesha")),
          dest_filename = stringr::str_split(download_url, stringr::fixed("/")),
          dest_filename = purrr::map(dest_filename, ~.x[length(.x)])
-         )
+         ) |>
+  filter(as.numeric(year) < 2022) ## uses versions from city website instead of these
 
 milwaukee_records_tibble_no_ftp <- milwaukee_records_tibble |>
   filter_out(stringr::str_detect(download_url, "^ftp"))
@@ -54,3 +55,4 @@ purrr::walk(1:nrow(milwaukee_records_tibble_no_ftp),
             )
 )
 
+save(milwaukee_records_tibble_no_ftp, file = here::here("files_downloaded_from_archive.Rda"))
