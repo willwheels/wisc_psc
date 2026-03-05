@@ -77,4 +77,4 @@ read_filenames <- purrr::map2_vec(milwaukee_records_tibble$format, milwaukee_rec
 milwaukee_records_tibble$read_filename <- read_filenames
 
 
-save(milwaukee_records_tibble, file = here::here("files_downloaded_from_city.Rda"))
+save(milwaukee_records_tibble, file = here::here("property_tax_rolls", "files_downloaded_from_city.Rda"))

@@ -3,9 +3,9 @@ library(dplyr)
 
 ## first, switch to reading each xml file
 
-load(here::here("files_downloaded_from_archive.Rda"))
+load(here::here("property_tax_rolls", "files_downloaded_from_archive.Rda"))
 
-load(here::here("files_downloaded_from_city.Rda"))
+load(here::here("property_tax_rolls","files_downloaded_from_city.Rda"))
 
 all_xml_records <- rbind(milwaukee_records_tibble, milwaukee_records_tibble_no_ftp) |>
   filter(format %in% c("zip", "xml")) |>

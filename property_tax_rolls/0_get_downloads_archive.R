@@ -26,7 +26,8 @@ milwaukee_records_tibble <- tibble::tibble(records_href = milwaukee_records_href
          download_url = stringr::str_remove(download_url, "https://web.archive.org"),
          county = if_else(as.numeric(year) < 2021, 
                           "all",
-                          stringr::str_extract(records_text, "Milwaukee|Washington|Waukesha")),
+                          stringr::str_extract(records_text, "-Milwaukee|-Washington|-Waukesha")),
+         county = stringr::str_remove(county, stringr::fixed("-")),
          dest_filename = stringr::str_split(download_url, stringr::fixed("/")),
          dest_filename = purrr::map(dest_filename, ~.x[length(.x)]),
          dest_filename = as.character(dest_filename),
@@ -84,4 +85,4 @@ read_filenames <- purrr::map2_vec(milwaukee_records_tibble_no_ftp$format, milwau
 
 milwaukee_records_tibble_no_ftp$read_filename <- read_filenames
 
-save(milwaukee_records_tibble_no_ftp, file = here::here("files_downloaded_from_archive.Rda"))
+save(milwaukee_records_tibble_no_ftp, file = here::here("property_tax_rolls", "files_downloaded_from_archive.Rda"))
